@@ -53,3 +53,50 @@ _check_exit:
     exit
     .return:
     ret 
+
+_check_invalide_char:
+    mov rsi , user_input ; has null terminator
+    .check_if_invalide_loop:
+    mov al , byte [rsi]
+    inc rsi 
+    cmp al, 10 ; check if end of char
+    je .no_invalide_char
+    cmp al , 32
+    je .check_if_invalide_loop
+    cmp al , 42
+    je .check_if_invalide_loop 
+    cmp al , 43
+    je .check_if_invalide_loop
+    cmp al , 45 
+    je .check_if_invalide_loop
+    cmp al , 47
+    jl .invalide_char
+    cmp al , 57
+    jg .invalide_char
+    
+    jmp .check_if_invalide_loop ; if value between 47 and 57
+
+    .invalide_char:
+    mov rax , 1
+    mov rdi , 1
+    mov rdx , 39
+    mov rsi , error_message_cro
+    syscall
+    mov r8 , 1
+    ret 
+
+    .no_invalide_char:
+    xor r8 , r8
+    ret
+
+_multiplication:
+ret     
+
+_addition:
+ret
+
+_substraction:
+ret 
+
+_division:;can't divide by 0 !
+ret
