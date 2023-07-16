@@ -6,7 +6,9 @@ section .bss
 
 section .data
     closing_angle_braquet db "> "
-    error_message_cro db "Error (1): couldn't resolve opperation",10
+    error_message_ic db "Error (1): invalide character",10
+    error_message_cdz db "Error (2): can't divide by zero",10
+    error_message_m db "Error (3): invalide math opperation",10
     exit_cmd db "exit"
     exit_cmd2 db "quit"
     for_testing db "opperation succeed !",10
@@ -20,6 +22,10 @@ _start:
     call _check_invalide_char
     cmp r8 , 1
     je .restart
+    call _check_invalide_division
+    cmp r8 , 1
+    je .restart
+
 
     mov rax , 1
     mov rdi , 1
