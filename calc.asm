@@ -8,10 +8,12 @@ section .data
     closing_angle_braquet db "> "
     error_message_ic db "Error (1): invalide character",10
     error_message_cdz db "Error (2): can't divide by zero",10
-    error_message_m db "Error (3): invalide math opperation",10
+    error_message_imo db "Error (3): invalide math opperation",10
+    error_message_pf db "Error (3): processing failed",10
     exit_cmd db "exit"
     exit_cmd2 db "quit"
-    for_testing db "opperation succeed !",10
+    for_testing db 10 ,"opperation succeed !",10
+    user_input_no_space db 256 dup (0) , 1
 
 section .text
 global _start
@@ -25,14 +27,22 @@ _start:
     call _check_invalide_division
     cmp r8 , 1
     je .restart
-
+    call _check_invalide_math
+    cmp r8 , 1
+    je .restart
+    call _clear_data_user_input_no_space
+    call _remove_space
+    ;call resolve_mul_sub
+    ;cmp r8 , 1
+    ;je .restart
 
     mov rax , 1
     mov rdi , 1
     mov rsi , for_testing
-    mov rdx , 21
+    mov rdx , 22
     syscall
     ; calculation and output goes here
 
 .restart:
     jmp _start
+
