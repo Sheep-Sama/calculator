@@ -1,4 +1,5 @@
 %include "calc.inc"
+MAX_SIZE equ 256
 
 section .bss
     user_input resb 256
@@ -12,9 +13,10 @@ section .data
     exit_cmd db "exit"
     exit_cmd2 db "quit"
     for_testing db "opperation succeed !",10
-    user_input_no_space db 256 dup (0) , 1
-    first_number db 256 dup (0)
-    second_number db 256 dup (0)
+    user_input_no_space db MAX_SIZE dup (0) , 1
+    buffer db MAX_SIZE dup (0) , 1
+    first_number db MAX_SIZE dup (0)
+    second_number db MAX_SIZE dup (0)
 
 
 section .text
@@ -34,7 +36,7 @@ _start:
     je .restart
     call _clear_data_user_input_no_space
     call _remove_space
-    
+
     mov rsi , user_input_no_space
     call resolve_mul_sub
     cmp r8 , 1

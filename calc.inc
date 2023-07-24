@@ -1,5 +1,33 @@
 %include "../lib.inc"
 
+;rbx = string len
+;buffer = string
+%macro IntToStr 2
+    ; Assume the integer to be converted is stored in the RAX register
+    mov rdi, %2   ; Point RDI to the start of the result buffer
+    xor r10, r10  ; Clear r10 to use as a counter for the number of digits
+
+    mov rcx, IntBuffer
+    mov [IntBufferPos], rcx
+    %%storeLoop:
+        mov rdx, 0
+        mov rbx, 10
+        div rbx
+        push rax; rax = orginal string
+        add rdx, 48; rdx = remainder 
+        mov [rcx] ,dl
+        mov rcx, [IntBufferPos]
+        inc rcx 
+        mov [IntBufferPos], rcx
+
+        pop rax
+        cmp rax,0
+        jne %%storeLoop
+
+;"35"
+;35 / 10 = 30 + 5
+%endmacro
+
 section .text 
 
 _prompt:    
@@ -221,6 +249,8 @@ resolve_mul_sub:
     mov rbx , first_number 
     mov rcx , second_number 
     _the_loop:
+    cmp r10 , 2
+    je .processing_math
     mov al , byte [rsi]
     inc rsi 
     cmp al, 10 ; check if end of string
@@ -249,8 +279,6 @@ resolve_mul_sub:
 
 
     .number:
-    cmp r10 , 2
-    je .processing_math
     cmp r10 , 1
     je .second_number
     ;.first_number:
@@ -267,10 +295,20 @@ resolve_mul_sub:
 
 
     .processing_math:
+    dec rsi; to make rsi at last char
     mov rbx , first_number 
     mov rcx , second_number 
-    ; do math here (the math is located at the end of file)
-    dec rsi; to make rsi at last char
+    StrToInt rbx 
+    StrToInt rcx
+    cmp r9 , 0
+    je .prc_div
+    call _perform_multiplication
+    ;next step
+    jmp resolve_mul_sub
+
+    .prc_div:
+    call _perform_division
+    ; next step
     jmp resolve_mul_sub
 
     .error_while_processing:
@@ -288,6 +326,18 @@ resolve_mul_sub:
     je .processing_math
     ret
 
+_perform_division:
+mov rdx , 0
+mov rax , rbx
+idiv rcx 
+;IntToStr rax , buffer
+ret 
+
+_perform_multiplication:
+imul rbx , rcx 
+;IntToStr rbx , buffer
+
+ret 
 
 ; get first number into rbx
 ; get second number into rcx 
