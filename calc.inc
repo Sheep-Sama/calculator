@@ -1,3 +1,5 @@
+%include "../lib.inc"
+
 section .text 
 
 _prompt:    
@@ -197,40 +199,32 @@ _remove_space:
     dec rdi
 _remove_space_loop:
     mov al , byte [rsi]
-    inc rdi 
     inc rsi 
-    cmp al, 10 
+    cmp al, 0; to keep new line character 
     je .return
     cmp al , 32
     jne .no_space
     jmp _remove_space_loop
 
     .no_space:
+    inc rdi 
     mov byte [rdi], al
     jmp _remove_space_loop
 
-
-
 .return:
-    mov rax , 1
-    mov rdi , 1
-    mov rdx , 57
-    mov rsi , user_input_no_space 
-    syscall
     ret
 
 resolve_mul_sub:
-    xor r8 , r8
-    xor rbx , rbx ; 1st number
-    xor rcx , rcx ; 2nd number
-    mov rsi , user_input ; has null terminator
+    xor r8 , r8 ; 0 = no error / 1 = error
+    xor r9 , r9 ; 0 = div / 1 = mul 
+    xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
+    mov rbx , first_number 
+    mov rcx , second_number 
     _the_loop:
     mov al , byte [rsi]
     inc rsi 
-    cmp al, 10 ; check if end of char
+    cmp al, 10 ; check if end of string
     je .return
-    cmp al , 32
-    je .space
     cmp al , 42
     je .multiplication
     cmp al , 47
@@ -242,35 +236,42 @@ resolve_mul_sub:
     
     jmp _the_loop
 
-    .space:
-    mov rcx , 1
-    jmp _the_loop
 
-    ;rbx = number
     .multiplication:
-    xor rcx , rcx
-    cmp rbx , 0
-    je .error_while_processing
-
-    jmp _the_loop 
+    mov r9 , 1
+    inc r10
+    jmp _the_loop
 
     .division:
-    xor rcx , rcx
-    cmp rbx , 0
-    je .error_while_processing
-    mov rax , 1
-    mov rdi , 1
-    mov rdx , 29
-    mov rsi , error_message_pf
-    syscall
+    mov r9 , 0
+    inc r10
     jmp _the_loop
+
 
     .number:
-    cmp rcx ,  1
-    je _the_loop
-    mov rbx , rsi
+    cmp r10 , 2
+    je .processing_math
+    cmp r10 , 1
+    je .second_number
+    ;.first_number:
+    mov r15b , [rsi - 1]
+    mov byte [rbx] , r15b
+    inc rbx
+    jmp _the_loop
+    .second_number:
+    mov r15b , [rsi - 1]
+    mov byte [rcx] , r15b
+    inc rcx 
 
     jmp _the_loop
+
+
+    .processing_math:
+    mov rbx , first_number 
+    mov rcx , second_number 
+    ; do math here (the math is located at the end of file)
+    dec rsi; to make rsi at last char
+    jmp resolve_mul_sub
 
     .error_while_processing:
     mov rax , 1
@@ -283,5 +284,33 @@ resolve_mul_sub:
 
 
 .return:
+    cmp r10 , 1
+    je .processing_math
     ret
+
+
+; get first number into rbx
+; get second number into rcx 
+
+;10 /5 * 3
+;rbx = 10
+;rcx = 5
+;perform calc = rax
+;mov rax , into "buffer"
+;append rsi until null byte into "buffer"
+;"buffer" = 2 * 3
+;clear "user_input_no_space"
+;cleat first_number and second_number
+
+;rbx = 2
+;rcx = 3
+;perform calc = rax
+;mov rax , into "user_input_no_space"
+;append rsi until null byte into "user_input_no_space"
+;"user_input_no_space" = 6
+;clear "buffer"
+
+;--start over
+
+
 
