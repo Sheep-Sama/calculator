@@ -12,7 +12,6 @@ section .data
     error_message_pf db "Error (4): processing failed",10
     exit_cmd db "exit"
     exit_cmd2 db "quit"
-    for_testing db "opperation succeed !",10
     user_input_no_space db MAX_SIZE dup (0) , 1
     buffer db MAX_SIZE dup (0) , 1
     first_number db MAX_SIZE dup (0)
@@ -42,12 +41,10 @@ _start:
     cmp r8 , 1
     je .restart
 
-    mov rax , 1
-    mov rdi , 1
-    mov rsi , for_testing
-    mov rdx , 21
-    syscall
-    ; calculation and output goes here
+    ClearData buffer , MAX_SIZE
+    ClearData first_number , MAX_SIZE
+    ClearData second_number , MAX_SIZE
+
 
 .restart:
     jmp _start

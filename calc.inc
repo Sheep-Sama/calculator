@@ -1,32 +1,72 @@
 %include "../lib.inc"
+MAX_SIZE equ 256
 
-;rbx = string len
-;buffer = string
+section .data
+data_buffer db MAX_SIZE dup (0)
+;r15 = strlen + null pointer
 %macro IntToStr 2
-    ; Assume the integer to be converted is stored in the RAX register
-    mov rdi, %2   ; Point RDI to the start of the result buffer
-    xor r10, r10  ; Clear r10 to use as a counter for the number of digits
 
-    mov rcx, IntBuffer
-    mov [IntBufferPos], rcx
-    %%storeLoop:
-        mov rdx, 0
-        mov rbx, 10
-        div rbx
-        push rax; rax = orginal string
-        add rdx, 48; rdx = remainder 
-        mov [rcx] ,dl
-        mov rcx, [IntBufferPos]
-        inc rcx 
-        mov [IntBufferPos], rcx
+    push   rax             ; Preserve the value of the integer register
+    push   rcx             ; Preserve the value of the loop counter register
+    push   rdx             ; Preserve the value of the remainder register
 
-        pop rax
-        cmp rax,0
-        jne %%storeLoop
+    mov    r15 , 1 ;for null byte 
+    mov    rdi , data_buffer         ; Store the pointer to the destination string
+    add    rdi , MAX_SIZE   ; Move the pointer to the end of the reserved bytes
+    dec    rdi             ; move to one byte from the end
+    mov    byte [rdi], 0   ; add null byte
+    mov    rcx , 10         ; Set divisor for dividing by 10
+    mov    rax , %1         ; Load the integer value to be converted
 
-;"35"
-;35 / 10 = 30 + 5
+    cmp    rax, 0          ; Check if the number is zero
+    jnz    .start_loop     ; If it's not zero, continue with the loop
+
+    ; If it's zero, directly store '0' and null-terminate the string
+    mov    byte [rdi], '0'
+    jmp    .end
+
+.start_loop:
+    xor    rdx , rdx        ; Clear the remainder register -->  avoid remainder and result concatenation
+    div    rcx             ; Divide the number by 10 (quotient in RAX, remainder in RDX)
+    add    dl , '0'         ; Convert the remainder (single digit) to ASCII
+    dec    rdi             ; Move the pointer one position back
+    inc    r15
+    mov    [rdi] , dl       ; Store the digit in the string
+    test   rax , rax        ; Check if quotient is zero
+    jnz    .start_loop     ; If not, continue the loop
+
+.end:
+
+    mov    rdx , %2
+    xor    rbx , rbx ; counter
+
+.storeLoop:
+    mov al , byte [rdi]
+    mov byte [rdx] , al
+    inc rdi
+    inc rdx 
+    inc rbx 
+    cmp rbx , r15
+    jne .storeLoop
+
+    mov rdi , data_buffer
+    add rdi , MAX_SIZE
+    sub rdi , r15
+    xor rbx , rbx ; counter
+
+.clearLoop:
+    mov byte [rdi] , 0
+    inc rbx 
+    cmp rbx , r15 
+    jne .clearLoop
+
+    pop    rdx             ; Restore the value of the remainder register
+    pop    rcx             ; Restore the value of the loop counter register
+    pop    rax             ; Restore the value of the integer register
+
+
 %endmacro
+
 
 section .text 
 
@@ -142,6 +182,8 @@ _check_invalide_division:
     .zero:
     cmp rcx , 1
     je .invalide_math_cdz
+    jmp .check_if_invalide_loop_d
+
 
     .division:
     mov rcx , 1
@@ -242,6 +284,9 @@ _remove_space_loop:
 .return:
     ret
 
+
+
+
 resolve_mul_sub:
     xor r8 , r8 ; 0 = no error / 1 = error
     xor r9 , r9 ; 0 = div / 1 = mul 
@@ -303,11 +348,19 @@ resolve_mul_sub:
     cmp r9 , 0
     je .prc_div
     call _perform_multiplication
+    cmp byte [rsi] , 10 ; 10 = new line
+    je .print_result
     ;next step
+    ; other string = rsi
+    dec r15
+    add rdi , r15;goto string end
+
     jmp resolve_mul_sub
 
     .prc_div:
     call _perform_division
+    cmp byte [rsi] , 10 ; 10 = new line
+    je .print_result
     ; next step
     jmp resolve_mul_sub
 
@@ -324,19 +377,29 @@ resolve_mul_sub:
 .return:
     cmp r10 , 1
     je .processing_math
-    ret
+.print_result:
+    ;AppendNewLine buffer; segfault here
+    mov rax , 1
+    mov rdi , 1
+    mov rsi , buffer
+    mov rdx , r15
+    inc rdx 
+    syscall
+    endl
+ret
 
 _perform_division:
 mov rdx , 0
 mov rax , rbx
 idiv rcx 
-;IntToStr rax , buffer
+IntToStr rax , buffer
+dec r15
 ret 
 
 _perform_multiplication:
 imul rbx , rcx 
-;IntToStr rbx , buffer
-
+IntToStr rbx , buffer
+dec r15
 ret 
 
 ; get first number into rbx
@@ -361,6 +424,3 @@ ret
 ;clear "buffer"
 
 ;--start over
-
-
-
