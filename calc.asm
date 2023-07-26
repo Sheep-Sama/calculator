@@ -41,10 +41,6 @@ _start:
     cmp r8 , 1
     je .restart
 
-    ClearData buffer , MAX_SIZE
-    ClearData first_number , MAX_SIZE
-    ClearData second_number , MAX_SIZE
-
 
 .restart:
     jmp _start

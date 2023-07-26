@@ -22,8 +22,11 @@ data_buffer db MAX_SIZE dup (0)
     jnz    .start_loop     ; If it's not zero, continue with the loop
 
     ; If it's zero, directly store '0' and null-terminate the string
+    inc    r15
+    mov    rdi, %2 
     mov    byte [rdi], '0'
-    jmp    .end
+    mov    byte [rdi + 1] , 0
+    jmp    .exit
 
 .start_loop:
     xor    rdx , rdx        ; Clear the remainder register -->  avoid remainder and result concatenation
@@ -59,6 +62,8 @@ data_buffer db MAX_SIZE dup (0)
     inc rbx 
     cmp rbx , r15 
     jne .clearLoop
+
+.exit:
 
     pop    rdx             ; Restore the value of the remainder register
     pop    rcx             ; Restore the value of the loop counter register
@@ -293,6 +298,9 @@ resolve_mul_sub:
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
     mov rbx , first_number 
     mov rcx , second_number 
+    ClearData first_number , MAX_SIZE
+    ClearData second_number , MAX_SIZE
+    ClearData buffer , MAX_SIZE
     _the_loop:
     cmp r10 , 2
     je .processing_math
@@ -336,11 +344,13 @@ resolve_mul_sub:
     mov byte [rcx] , r15b
     inc rcx 
 
+    cmp byte [rsi] , 48
+    jl .processing_math ; not a number !
+
     jmp _the_loop
 
 
     .processing_math:
-    dec rsi; to make rsi at last char
     mov rbx , first_number 
     mov rcx , second_number 
     StrToInt rbx 
@@ -350,10 +360,8 @@ resolve_mul_sub:
     call _perform_multiplication
     cmp byte [rsi] , 10 ; 10 = new line
     je .print_result
-    ;next step
-    ; other string = rsi
-    dec r15
-    add rdi , r15;goto string end
+
+    call _concat_buffer
 
     jmp resolve_mul_sub
 
@@ -361,7 +369,8 @@ resolve_mul_sub:
     call _perform_division
     cmp byte [rsi] , 10 ; 10 = new line
     je .print_result
-    ; next step
+    call _concat_buffer
+
     jmp resolve_mul_sub
 
     .error_while_processing:
@@ -378,7 +387,6 @@ resolve_mul_sub:
     cmp r10 , 1
     je .processing_math
 .print_result:
-    ;AppendNewLine buffer; segfault here
     mov rax , 1
     mov rdi , 1
     mov rsi , buffer
@@ -393,13 +401,37 @@ mov rdx , 0
 mov rax , rbx
 idiv rcx 
 IntToStr rax , buffer
-dec r15
 ret 
 
 _perform_multiplication:
 imul rbx , rcx 
 IntToStr rbx , buffer
-dec r15
+ret 
+
+_concat_buffer:
+mov rdi , buffer
+dec r15; remove null byte
+add rdi , r15;goto string end
+;counting rsi length
+mov rax , rsi 
+xor rbx , rbx
+.counting_loop:
+mov cl , byte [rax]
+inc rbx 
+inc rax 
+cmp cl , 10
+jne .counting_loop
+
+CopyChar rdi , rsi , rbx 
+mov rsi , buffer
+ClearData user_input_no_space , MAX_SIZE
+CopyChar user_input_no_space , rsi , MAX_SIZE
+mov rsi , user_input_no_space
+mov rdi , 1
+mov rdx , 256
+mov rax , 1
+syscall
+
 ret 
 
 ; get first number into rbx
