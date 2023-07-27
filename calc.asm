@@ -9,10 +9,10 @@ section .data
     error_message_ic db "Error (1): invalide character",10
     error_message_cdz db "Error (2): can't divide by zero",10
     error_message_imo db "Error (3): invalide math opperation",10
-    error_message_pf db "Error (4): processing failed",10
+    error_message_pf db "Error (4): math processing failed",10
     exit_cmd db "exit"
     exit_cmd2 db "quit"
-    user_input_no_space db MAX_SIZE dup (0) , 1
+    user_input_no_space db MAX_SIZE dup (0)
     buffer db MAX_SIZE dup (0) , 1
     first_number db MAX_SIZE dup (0)
     second_number db MAX_SIZE dup (0)
@@ -33,15 +33,16 @@ _start:
     call _check_invalide_math
     cmp r8 , 1
     je .restart
-    call _clear_data_user_input_no_space
+    ClearData user_input_no_space , MAX_SIZE
     call _remove_space
-
     mov rsi , user_input_no_space
-    call resolve_mul_sub
+    call resolve_mul_div
     cmp r8 , 1
     je .restart
+    mov rsi , user_input_no_space
+    call resolve_add_sub
 
-
+    ClearData user_input , MAX_SIZE
 .restart:
     jmp _start
 

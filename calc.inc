@@ -267,8 +267,6 @@ _clear_data_user_input_no_space:
     ret
 
 
-
-
 _remove_space:
     mov rsi , user_input 
     mov rdi , user_input_no_space
@@ -293,7 +291,7 @@ _remove_space_loop:
 
 
 
-resolve_mul_sub:
+resolve_mul_div:
     FindChar rsi , '*'
     cmp rax , 1
     je .next
@@ -335,7 +333,7 @@ resolve_mul_sub:
     jmp _the_loop
 
     .opperation:
-    jmp resolve_mul_sub
+    jmp resolve_mul_div
 
     .multiplication:    
     mov r9 , 1
@@ -375,26 +373,13 @@ resolve_mul_sub:
     cmp r9 , 0
     je .prc_div
     call _perform_multiplication
-
-    mov rdi , user_input_no_space
-    FindChar rdi , '+'
-    cmp rax , 1
-    je .concat
-    FindChar rdi , '-'
-    cmp rax , 1
-    je .concat
-
-
-    cmp byte [rsi] , 10 ; 10 = new line
-    je .print_result
-
-    call _concat_buffer
-
-    jmp resolve_mul_sub
+    jmp .after_process
 
     .prc_div:
     call _perform_division
 
+
+    .after_process:
     mov rdi , user_input_no_space
     FindChar rdi , '+'
     cmp rax , 1
@@ -409,7 +394,7 @@ resolve_mul_sub:
     .concat:
     call _concat_buffer
 
-    jmp resolve_mul_sub
+    jmp resolve_mul_div
 
     .error_while_processing:
     mov rax , 1
@@ -494,6 +479,151 @@ xor rcx , rcx
     CopyChar rsi , buffer , rax
     CopyChar buffer , data_buffer , MAX_SIZE
 .print_data:
+ClearData user_input_no_space , MAX_SIZE
+CopyChar user_input_no_space , buffer , MAX_SIZE
+StrLen user_input_no_space ;output = rax
+mov rsi , user_input_no_space
+mov rdi , 1
+mov rdx , rax
+mov rax , 1
+syscall
+ret 
+
+
+;           _____  _____              _____ _    _ ____ 
+;     /\   |  __ \|  __ \    ___     / ____| |  | |  _ \
+;    /  \  | |  | | |  | |  ( _ )   | (___ | |  | | |_) |
+;   / /\ \ | |  | | |  | |  / _ \/\  \___ \| |  | |  _ <
+;  / ____ \| |__| | |__| | | (_>  <  ____) | |__| | |_) |
+; /_/    \_\_____/|_____/   \___/\/ |_____/ \____/|____/
+
+
+resolve_add_sub:
+    xor r8 , r8 ; 0 = no error / 1 = error
+    xor r9 , r9 ; 0 = div / 1 = mul 
+    xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
+    mov rbx , first_number 
+    mov rcx , second_number 
+    ClearData first_number , MAX_SIZE
+    ClearData second_number , MAX_SIZE
+    ClearData buffer , MAX_SIZE
+    _the_loop_as:
+    cmp r10 , 2
+    je .processing_math
+    mov al , byte [rsi]
+    inc rsi 
+    cmp al, 10 ; check if end of string
+    je .return
+    cmp al , '+'
+    je .addition
+    cmp al , '-'
+    je .substraction
+    cmp al , 48
+    jl _the_loop_as
+    cmp al , 57
+    jle .number
+    
+    jmp _the_loop_as
+
+
+    .addition:
+    mov r9 , 1
+    inc r10
+    jmp _the_loop_as
+
+    .substraction:
+    mov r9 , 0
+    inc r10
+    jmp _the_loop_as
+
+
+    .number:
+    cmp r10 , 1
+    je .second_number
+    ;.first_number:
+    mov r15b , [rsi - 1]
+    mov byte [rbx] , r15b
+    inc rbx
+    jmp _the_loop_as
+    .second_number:
+    mov r15b , [rsi - 1]
+    mov byte [rcx] , r15b
+    inc rcx 
+
+    cmp byte [rsi] , 48
+    jl .processing_math ; not a number !
+
+    jmp _the_loop_as
+
+
+    .processing_math:
+    mov rbx , first_number 
+    mov rcx , second_number 
+    StrToInt rbx 
+    StrToInt rcx
+    cmp r9 , 0
+    je .prc_div
+    call _perform_addition
+    jmp .after_process
+
+    .prc_div:
+    call _perform_substraction
+    
+    .after_process:
+    cmp byte [rsi] , 10 ; 10 = new line
+    je .print_result
+    call _concat_buffer_as
+
+    jmp resolve_add_sub
+
+    .error_while_processing:
+    mov rax , 1
+    mov rdi , 1
+    mov rdx , 29
+    mov rsi , error_message_pf
+    syscall
+    mov r8 , 1
+    jmp .return
+
+
+.return:
+    cmp r10 , 1
+    je .processing_math
+.print_result:
+    mov rax , 1
+    mov rdi , 1
+    mov rsi , buffer
+    mov rdx , r15
+    inc rdx 
+    syscall
+    endl
+ret
+
+_perform_substraction:
+sub rbx , rcx 
+IntToStr rbx , buffer
+ret 
+
+_perform_addition:
+add rbx , rcx 
+IntToStr rbx , buffer
+ret 
+
+_concat_buffer_as:
+mov rdi , buffer
+dec r15; remove null byte
+add rdi , r15;goto string end
+;counting rsi length
+mov rax , rsi 
+xor rbx , rbx
+.counting_loop:
+mov cl , byte [rax]
+inc rbx 
+inc rax 
+cmp cl , 10
+jne .counting_loop
+
+CopyChar rdi , rsi , rbx 
 mov rsi , buffer
 ClearData user_input_no_space , MAX_SIZE
 CopyChar user_input_no_space , rsi , MAX_SIZE
@@ -503,11 +633,10 @@ mov rdx , 256
 mov rax , 1
 syscall
 
-ret 
-
+ret
 
 ;to do
 ;error checking - 3 / 4
 ;support for square root: 4^2 = 16
-;opperation with + and -
+;opperation with + and - ( 10 - 12 )
 ;support for floating point number + operation ????  
