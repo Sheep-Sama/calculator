@@ -35,6 +35,8 @@ _start:
     je .restart
     ClearData user_input_no_space , MAX_SIZE
     call _remove_space
+    call square_handling
+
     mov rsi , user_input_no_space
     call resolve_mul_div
     cmp r8 , 1

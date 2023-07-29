@@ -146,6 +146,8 @@ _check_invalide_char:
     je .check_if_invalide_loop
     cmp al , 45 
     je .check_if_invalide_loop
+    cmp al , '^'
+    je .check_if_invalide_loop
     cmp al , 47
     jl .invalide_char
     cmp al , 57
@@ -288,7 +290,148 @@ _remove_space_loop:
 .return:
     ret
 
+square_handling:
+    FindChar user_input_no_space , '^'
+    cmp rax , 1
+    jne .return_no_print
+    
+    mov rdi , buffer
+    mov rsi , user_input_no_space
+    mov rbx , first_number 
+    mov rcx , second_number
+    xor rdx , rdx ;last operation found pointer
+    xor r10 , r10 
+    xor r9 , r9
+    mov r11 , user_input_no_space ;last copied char
+    ClearData buffer , MAX_SIZE
+    ClearData first_number , MAX_SIZE
+    ClearData second_number , MAX_SIZE
 
+.loop:
+    mov al , byte [rsi]
+    inc rsi
+    cmp al , 10
+    je .return
+    cmp al , '^'
+    je .sqr
+    cmp al , 48
+    jge .number
+    jmp .other_opperation
+
+
+    .sqr:
+    mov r9 , 0
+    mov r10 , 1
+    mov rdx , rsi - 1
+    jmp .loop
+
+    .other_opperation:
+    mov r9 , 1
+    mov r10 , 1
+    mov rdx , rsi - 1
+    jmp .loop
+
+    .number:
+    cmp r10 , 1
+    je .second_number
+    ;.first_number:
+    mov r15b , [rsi - 1]
+    mov byte [rbx] , r15b
+    inc rbx
+
+    cmp byte [rsi] , 10
+    je .copy_end
+
+    jmp .loop
+    .second_number:
+    mov r15b , [rsi - 1]
+    mov byte [rcx] , r15b
+    inc rcx 
+
+    cmp byte [rsi] , '^'
+    je .processing_math
+    cmp byte [rsi] , 48
+    jl .processing_math ; not a number !
+
+    jmp .loop
+
+    .processing_math:
+    xor r10 , r10;to start again at first number
+    cmp r9 , 1
+    mov rbx , first_number 
+    je .other_opperation_copy
+    ;mov r11 , rsi - 1
+    mov rcx , second_number 
+    StrToInt rbx 
+    StrToInt rcx
+    call _process_sqr
+    cmp byte [rsi] , 0
+    je .return
+    jmp .end
+
+    .other_opperation_copy:
+    mov rsi , rdx; move back pointer for next opperation
+
+    .copy_loop:
+    mov al , byte [rbx]
+    mov byte [rdi] , al
+    inc rbx 
+    inc rdi 
+    cmp byte [rbx] , 0
+    jne .copy_loop
+    ;copy opperator
+    dec rdx 
+    mov al , byte [rdx]
+    mov byte [rdi] , al
+    inc rdi
+
+    .end:
+    ClearData first_number , MAX_SIZE
+    ClearData second_number , MAX_SIZE
+    mov rbx , first_number 
+    mov rcx , second_number
+    jmp .loop
+
+.copy_end:
+    mov rbx , first_number 
+
+    .copy_last_int_Loop:
+    mov al , byte [rbx]
+    mov byte [rdi] , al
+    inc rbx 
+    inc rdi 
+    cmp byte [rbx] , 0
+    jne .copy_last_int_Loop
+    
+    mov byte [rdi] , 10
+    inc rdi
+    
+    jmp .return
+
+.return:
+    StrLen user_input_no_space
+    ClearData user_input_no_space , rax
+    StrLen buffer;output = rax
+    CopyChar user_input_no_space , buffer , rax
+
+    mov rax , 1
+    mov rdi , 1
+    mov rsi , user_input_no_space
+    mov rdx , 256
+    syscall
+.return_no_print:
+ret
+_process_sqr:
+mov al , '1'
+mov byte [rdi] , al
+inc rdi 
+
+;move opperation:
+mov al , byte [rsi]
+mov byte [rdi] , al
+inc rsi
+inc rdi
+ret 
 
 
 resolve_mul_div:
@@ -499,6 +642,16 @@ ret
 
 
 resolve_add_sub:
+    FindChar rsi , '+'
+    cmp rax , 1
+    je .next
+    
+    FindChar rsi , '-'
+    cmp rax , 1
+    je .next
+    ret
+
+    .next:
     xor r8 , r8 ; 0 = no error / 1 = error
     xor r9 , r9 ; 0 = div / 1 = mul 
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
@@ -636,6 +789,7 @@ syscall
 ret
 
 ;to do
+;error checking = first_number = null , second number = null
 ;error checking - 3 / 4
 ;support for square root: 4^2 = 16
 ;opperation with + and - ( 10 - 12 )
