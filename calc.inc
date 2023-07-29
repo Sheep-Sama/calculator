@@ -9,6 +9,7 @@ data_buffer db MAX_SIZE dup (0)
     push   rax             ; Preserve the value of the integer register
     push   rcx             ; Preserve the value of the loop counter register
     push   rdx             ; Preserve the value of the remainder register
+    push   rdi
 
     mov    r15 , 1 ;for null byte 
     mov    rdi , data_buffer         ; Store the pointer to the destination string
@@ -47,7 +48,7 @@ data_buffer db MAX_SIZE dup (0)
     mov al , byte [rdi]
     mov byte [rdx] , al
     inc rdi
-    inc rdx 
+    inc rdx
     inc rbx 
     cmp rbx , r15
     jne .storeLoop
@@ -66,6 +67,7 @@ data_buffer db MAX_SIZE dup (0)
 
 .exit:
 
+    pop    rdi
     pop    rdx             ; Restore the value of the remainder register
     pop    rcx             ; Restore the value of the loop counter register
     pop    rax             ; Restore the value of the integer register
@@ -422,9 +424,34 @@ square_handling:
 .return_no_print:
 ret
 _process_sqr:
-mov al , '1'
+
+cmp rcx , 1
+je .after_process
+cmp rcx , 0
+je .square_zero
+
+mov r11 , 1
+mov r12 , rbx 
+.calc_loop:
+imul rbx , r12
+inc r11 
+cmp r11 , rcx
+jne .calc_loop
+jmp .after_process
+
+.square_zero:
+mov rbx , 0
+
+.after_process:
+IntToStr rbx , first_number
+mov rbx , first_number
+.store_loop:
+mov al , byte [rbx]
 mov byte [rdi] , al
-inc rdi 
+inc rbx 
+inc rdi
+cmp byte [rbx] , 0
+jne .store_loop
 
 ;move opperation:
 mov al , byte [rsi]
