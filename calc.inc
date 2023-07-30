@@ -20,16 +20,16 @@ data_buffer db MAX_SIZE dup (0)
     mov    rax , %1         ; Load the integer value to be converted
 
     cmp    rax, 0          ; Check if the number is zero
-    jnz    .start_loop     ; If it's not zero, continue with the loop
+    jnz    %%start_loop     ; If it's not zero, continue with the loop
 
     ; If it's zero, directly store '0' and null-terminate the string
     inc    r15
     mov    rdi, %2 
     mov    byte [rdi], '0'
     mov    byte [rdi + 1] , 0
-    jmp    .exit
+    jmp    %%exit
 
-.start_loop:
+%%start_loop:
     xor    rdx , rdx        ; Clear the remainder register -->  avoid remainder and result concatenation
     div    rcx             ; Divide the number by 10 (quotient in RAX, remainder in RDX)
     add    dl , '0'         ; Convert the remainder (single digit) to ASCII
@@ -37,35 +37,35 @@ data_buffer db MAX_SIZE dup (0)
     inc    r15
     mov    [rdi] , dl       ; Store the digit in the string
     test   rax , rax        ; Check if quotient is zero
-    jnz    .start_loop     ; If not, continue the loop
+    jnz    %%start_loop     ; If not, continue the loop
 
-.end:
+%%end:
 
     mov    rdx , %2
     xor    rbx , rbx ; counter
 
-.storeLoop:
+%%storeLoop:
     mov al , byte [rdi]
     mov byte [rdx] , al
     inc rdi
     inc rdx
     inc rbx 
     cmp rbx , r15
-    jne .storeLoop
+    jne %%storeLoop
 
     mov rdi , data_buffer
     add rdi , MAX_SIZE
     sub rdi , r15
     xor rbx , rbx ; counter
 
-.clearLoop:
+%%clearLoop:
     mov byte [rdi] , 0
     inc rbx 
     inc rdi
     cmp rbx , r15 
-    jne .clearLoop
+    jne %%clearLoop
 
-.exit:
+%%exit:
 
     pop    rdi
     pop    rdx             ; Restore the value of the remainder register
@@ -792,8 +792,26 @@ ret
 _perform_substraction:
 ;add support for negative int !
 ;-2 needs to be -2 and not 18446744073709551614
+cmp rbx , rcx 
+jl .negative_res
+
 sub rbx , rcx 
 IntToStr rbx , buffer
+jmp .return 
+
+.negative_res:
+;add '-' to buffer
+mov r10 , rbx 
+mov rbx , rcx 
+mov rcx , r10 
+sub rbx , rcx 
+IntToStr rbx , buffer + 1
+
+mov rdi , buffer
+mov al , '-'
+mov byte [rdi], al 
+
+.return:
 ret 
 
 _perform_addition:
@@ -828,7 +846,4 @@ syscall
 ret
 
 ;to do
-;error checking = first_number = null , second number = null
-;support for square root: 4^2 = 16
-;opperation with + and - ( 10 - 12 )
-;support for floating point number + operation ????  
+;support for -34-3
