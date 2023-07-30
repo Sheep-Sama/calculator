@@ -35,6 +35,8 @@ _start:
     je .restart
     ClearData user_input_no_space , MAX_SIZE
     call _remove_space
+    
+    ClearData user_input , MAX_SIZE; no need for user_input
     call square_handling
 
     mov rsi , user_input_no_space
@@ -43,8 +45,9 @@ _start:
     je .restart
     mov rsi , user_input_no_space
     call resolve_add_sub
+    cmp r8 , 1
+    je .restart
 
-    ClearData user_input , MAX_SIZE
 .restart:
     jmp _start
 

@@ -538,6 +538,12 @@ resolve_mul_div:
     .processing_math:
     mov rbx , first_number 
     mov rcx , second_number 
+
+    cmp byte [rbx] , 0
+    je .error_while_processing
+    cmp byte [rcx] , 0
+    je .error_while_processing
+
     StrToInt rbx 
     StrToInt rcx
     cmp r9 , 0
@@ -569,11 +575,11 @@ resolve_mul_div:
     .error_while_processing:
     mov rax , 1
     mov rdi , 1
-    mov rdx , 29
+    mov rdx , 34
     mov rsi , error_message_pf
     syscall
     mov r8 , 1
-    jmp .return
+    ret
 
 
 .return:
@@ -739,6 +745,10 @@ resolve_add_sub:
     .processing_math:
     mov rbx , first_number 
     mov rcx , second_number 
+
+    cmp byte [rcx] , 0
+    je .error_while_processing
+
     StrToInt rbx 
     StrToInt rcx
     cmp r9 , 0
@@ -759,11 +769,11 @@ resolve_add_sub:
     .error_while_processing:
     mov rax , 1
     mov rdi , 1
-    mov rdx , 29
+    mov rdx , 34
     mov rsi , error_message_pf
     syscall
     mov r8 , 1
-    jmp .return
+    ret
 
 
 .return:
@@ -780,6 +790,8 @@ resolve_add_sub:
 ret
 
 _perform_substraction:
+;add support for negative int !
+;-2 needs to be -2 and not 18446744073709551614
 sub rbx , rcx 
 IntToStr rbx , buffer
 ret 
@@ -817,7 +829,6 @@ ret
 
 ;to do
 ;error checking = first_number = null , second number = null
-;error checking - 3 / 4
 ;support for square root: 4^2 = 16
 ;opperation with + and - ( 10 - 12 )
 ;support for floating point number + operation ????  
