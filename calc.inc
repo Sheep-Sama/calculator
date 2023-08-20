@@ -362,7 +362,6 @@ square_handling:
     cmp r9 , 1
     mov rbx , first_number 
     je .other_opperation_copy
-    ;mov r11 , rsi - 1
     mov rcx , second_number 
     StrToInt rbx 
     StrToInt rcx
@@ -410,11 +409,26 @@ square_handling:
     
     jmp .return
 
+
+.error_while_processing:
+    mov rax , 1
+    mov rdi , 1
+    mov rdx , 34
+    mov rsi , error_message_pf
+    syscall
+    mov r8 , 1
+    ret
+
 .return:
+
     StrLen user_input_no_space
     ClearData user_input_no_space , rax
     StrLen buffer;output = rax
     CopyChar user_input_no_space , buffer , rax
+    
+    FindChar user_input_no_space , '^'
+    cmp rax , 1
+    je square_handling
 
     mov rax , 1
     mov rdi , 1
@@ -675,6 +689,7 @@ ret
 
 
 resolve_add_sub:
+    ;check if there is addition or substraction
     FindChar rsi , '+'
     cmp rax , 1
     je .next
@@ -685,8 +700,32 @@ resolve_add_sub:
     ret
 
     .next:
+    ;for '-{int}' or '+{int}' case
+    inc rsi 
+    FindChar rsi , '+'
+    cmp rax , 1
+    je .next2
+    FindChar rsi , '-'
+    cmp rax , 1
+    je .next2
+
+    cmp byte [rsi] , 10; for '+' and '-' case
+    jne .valid_int
+    ret 
+    
+    .valid_int:
+
+    CopyChar buffer , user_input_no_space , MAX_SIZE
+    StrLen buffer 
+    mov r15 , rax 
+    sub r15 , 2 ; remove the line breaking chars
+    jmp _the_loop_as.print_result  
+
+    .next2:
+    dec rsi 
+    
     xor r8 , r8 ; 0 = no error / 1 = error
-    xor r9 , r9 ; 0 = div / 1 = mul 
+    xor r9 , r9 ; 0 = sub / 1 = add 
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
     mov rbx , first_number 
     mov rcx , second_number 
@@ -718,8 +757,13 @@ resolve_add_sub:
     jmp _the_loop_as
 
     .substraction:
+    cmp byte [first_number] , 0
+    je .negative_first_number
     mov r9 , 0
     inc r10
+    jmp _the_loop_as
+    .negative_first_number:
+    mov r12 , 1
     jmp _the_loop_as
 
 
@@ -760,10 +804,11 @@ resolve_add_sub:
     call _perform_substraction
     
     .after_process:
+    xor r12 , r12
+
     cmp byte [rsi] , 10 ; 10 = new line
     je .print_result
     call _concat_buffer_as
-
     jmp resolve_add_sub
 
     .error_while_processing:
@@ -790,8 +835,23 @@ resolve_add_sub:
 ret
 
 _perform_substraction:
-;add support for negative int !
-;-2 needs to be -2 and not 18446744073709551614
+cmp r12 , 0
+je .first_number_positive
+
+add rbx , rcx 
+IntToStr rbx , buffer + 1
+
+mov rdi , buffer
+mov al , '-'
+mov byte [rdi], al 
+inc r15 ;for the '-' added to the string
+
+jmp .return
+
+
+
+.first_number_positive:
+
 cmp rbx , rcx 
 jl .negative_res
 
@@ -800,7 +860,6 @@ IntToStr rbx , buffer
 jmp .return 
 
 .negative_res:
-;add '-' to buffer
 mov r10 , rbx 
 mov rbx , rcx 
 mov rcx , r10 
@@ -810,13 +869,46 @@ IntToStr rbx , buffer + 1
 mov rdi , buffer
 mov al , '-'
 mov byte [rdi], al 
+inc r15 ;for the '-' added to the string
 
 .return:
 ret 
 
 _perform_addition:
+;add support for negative int !!!
+cmp r12 , 0
+je .first_number_positive
+
+
+cmp rbx , rcx 
+jl .negative_res
+
+;-2+3 --> not working =(
+sub rbx , rcx 
+IntToStr rbx , buffer + 1
+mov rdi , buffer
+mov al , '-'
+mov byte [rdi], al 
+inc r15 ;for the '-' added to the string
+jmp .return
+
+.negative_res:
+;switch rcx and rbx
+mov r10 , rbx 
+mov rbx , rcx 
+mov rcx , r10 
+
+sub rbx , rcx 
+IntToStr rbx , buffer
+jmp .return
+
+
+
+.first_number_positive:
 add rbx , rcx 
 IntToStr rbx , buffer
+
+.return:
 ret 
 
 _concat_buffer_as:
@@ -846,4 +938,5 @@ syscall
 ret
 
 ;to do
-;support for -34-3
+;fix bug : 2 + 5^4 + 3
+;catch error : 4^ = segfault
