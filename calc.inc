@@ -302,7 +302,7 @@ square_handling:
     mov rbx , first_number 
     mov rcx , second_number
     xor rdx , rdx ;last operation found pointer
-    xor r10 , r10 
+    xor r10 , r10; 0 = first number / 1 = second number 
     xor r9 , r9
     mov r11 , user_input_no_space ;last copied char
     ClearData buffer , MAX_SIZE
@@ -322,6 +322,9 @@ square_handling:
 
 
     .sqr:
+    cmp byte [first_number] , 0
+    je .error_while_processing
+
     mov r9 , 0
     mov r10 , 1
     mov rdx , rsi - 1
@@ -417,9 +420,16 @@ square_handling:
     mov rsi , error_message_pf
     syscall
     mov r8 , 1
-    ret
+    jmp .return_no_print
 
 .return:
+    cmp byte [first_number] , 0
+    je .no_error
+    cmp r10 , 1
+    jne .no_error
+    jmp .error_while_processing
+
+    .no_error:
 
     StrLen user_input_no_space
     ClearData user_input_no_space , rax
@@ -671,7 +681,7 @@ xor rcx , rcx
 .print_data:
 ClearData user_input_no_space , MAX_SIZE
 CopyChar user_input_no_space , buffer , MAX_SIZE
-StrLen user_input_no_space ;output = rax
+StrLenLB user_input_no_space ;output = rax
 mov rsi , user_input_no_space
 mov rdi , 1
 mov rdx , rax
@@ -711,7 +721,7 @@ resolve_add_sub:
 
     cmp byte [rsi] , 10; for '+' and '-' case
     jne .valid_int
-    ret 
+    jmp _the_loop_as.error_while_processing 
     
     .valid_int:
 
@@ -727,6 +737,7 @@ resolve_add_sub:
     xor r8 , r8 ; 0 = no error / 1 = error
     xor r9 , r9 ; 0 = sub / 1 = add 
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
+    xor r12 , r12
     mov rbx , first_number 
     mov rcx , second_number 
     ClearData first_number , MAX_SIZE
@@ -938,5 +949,4 @@ syscall
 ret
 
 ;to do
-;fix bug : 2 + 5^4 + 3
-;catch error : 4^ = segfault
+;catch error : -12+34^2 = segfault
