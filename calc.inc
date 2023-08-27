@@ -212,6 +212,125 @@ _check_invalide_division:
     xor r8 , r8
     ret
 
+; not working for 3 - 4
+; 34^2+3-+5 = error
+opperations_simplification:
+    mov rsi , user_input
+    FindChar user_input , '-'
+    cmp rax , 1
+    je .next
+
+    FindChar user_input , '+'
+    cmp rax , 1
+    je .next
+
+    jmp .return_no_print
+    .next:
+
+    ClearData buffer , MAX_SIZE
+    mov rdi , buffer
+    xor r9 , r9; 1 = first operation / 2 = second operation
+    xor r10 , r10; 0 = found addition / 1 = found substraction --> for first operation
+    xor r11 , r11; 0 = found addition / 1 = found substraction --> for second operation
+.loop:
+    mov al , byte [rsi]
+    inc rsi
+    cmp al , 0
+    je .return
+    cmp al , 32
+    je .space
+    cmp al , '-'
+    je .substraction
+    cmp al , '+'
+    je .addition
+    jmp .other_char
+
+    .addition:
+    cmp r9 , 1
+    je .second_operation_add
+    mov r10 , 0
+    inc r9
+    jmp .loop
+    .second_operation_add:
+    mov r11 , 0
+    inc r9
+    jmp .loop
+
+    .space:
+    mov byte [rdi] , al 
+    inc rdi 
+    jmp .loop
+
+    .substraction:
+    cmp r9 , 1
+    je .second_operation_sub
+    mov r10 , 1
+    inc r9
+    jmp .loop
+    .second_operation_sub:
+    mov r11 , 1
+    inc r9
+    jmp .loop
+
+    .other_char:
+    ;copy char into buffer
+    cmp r9 ,2
+    jg .invalide_math_imo
+    cmp r9 ,2 
+    jne .no_simplify
+    call _simplifying_opperation
+    .no_simplify:
+    ;copy char
+    mov byte [rdi] , al 
+    inc rdi 
+
+
+    jmp .loop
+
+
+.invalide_math_imo:
+    mov rax , 1
+    mov rdi , 1
+    mov rdx , 36
+    mov rsi , error_message_imo
+    syscall
+    mov r8 , 1
+    jmp .return_no_print
+
+.return:
+
+    mov rax , 1
+    mov rdi , 1
+    mov rsi , buffer
+    mov rdx , 256
+    syscall
+.return_no_print:
+ret
+
+_simplifying_opperation:
+    cmp r10 , r11
+    jne .not_same_op
+    jmp .simp_add
+    
+    .not_same_op:
+    jmp .simp_sub
+
+    .simp_add:
+    mov byte [rdi] , '+' 
+    inc rdi 
+    jmp .end
+
+    .simp_sub:
+    mov byte [rdi] , '-' 
+    inc rdi 
+
+    .end:
+    xor r9 , r9
+    xor r10 , r10
+    xor r11 , r11
+    ; al = rsi - 1
+ret 
+
 _check_invalide_math:    
     xor rcx , rcx ; 1 = found division
     mov rsi , user_input ; has null terminator
@@ -293,18 +412,19 @@ _remove_space_loop:
     ret
 
 square_handling:
+    mov rsi , user_input_no_space
     FindChar user_input_no_space , '^'
     cmp rax , 1
     jne .return_no_print
     
     mov rdi , buffer
-    mov rsi , user_input_no_space
     mov rbx , first_number 
     mov rcx , second_number
     xor rdx , rdx ;last operation found pointer
     xor r10 , r10; 0 = first number / 1 = second number 
-    xor r9 , r9
+    xor r9 , r9; 0 = sqr operation / 1 = other operation
     mov r11 , user_input_no_space ;last copied char
+    xor r13 , r13; 0 = no negative int / 1 = negative int
     ClearData buffer , MAX_SIZE
     ClearData first_number , MAX_SIZE
     ClearData second_number , MAX_SIZE
@@ -331,10 +451,20 @@ square_handling:
     jmp .loop
 
     .other_opperation:
+    cmp al , '-'
+    je .minus_found
+    .no_negative_number:
     mov r9 , 1
     mov r10 , 1
     mov rdx , rsi - 1
     jmp .loop
+
+    .minus_found:
+    cmp byte [first_number] , 0
+    jne .no_negative_number
+    mov r13 , 1
+    jmp .loop
+
 
     .number:
     cmp r10 , 1
@@ -356,7 +486,7 @@ square_handling:
     cmp byte [rsi] , '^'
     je .processing_math
     cmp byte [rsi] , 48
-    jl .processing_math ; not a number !
+    jl .processing_math ; not a number ! --> processing math if the opperation is completed
 
     jmp .loop
 
@@ -376,6 +506,12 @@ square_handling:
     .other_opperation_copy:
     mov rsi , rdx; move back pointer for next opperation
 
+    ;for negative number
+    cmp r13 , 1
+    jne .copy_loop
+    mov byte [rdi] , '-'
+    inc rdi 
+
     .copy_loop:
     mov al , byte [rbx]
     mov byte [rdi] , al
@@ -390,6 +526,7 @@ square_handling:
     inc rdi
 
     .end:
+    xor r13 , r13
     ClearData first_number , MAX_SIZE
     ClearData second_number , MAX_SIZE
     mov rbx , first_number 
@@ -469,10 +606,20 @@ mov rbx , 0
 .after_process:
 IntToStr rbx , first_number
 mov rbx , first_number
+;for first negative number
+mov al , byte [user_input_no_space] 
+cmp al , '-'
+jne .store_loop
+cmp r13 , 1
+jne .store_loop
+mov byte [rdi] , '-'
+inc rdi
+xor r13 , r13
+
 .store_loop:
 mov al , byte [rbx]
 mov byte [rdi] , al
-inc rbx 
+inc rbx
 inc rdi
 cmp byte [rbx] , 0
 jne .store_loop
@@ -710,7 +857,6 @@ resolve_add_sub:
     ret
 
     .next:
-    ;for '-{int}' or '+{int}' case
     inc rsi 
     FindChar rsi , '+'
     cmp rax , 1
@@ -723,13 +869,9 @@ resolve_add_sub:
     jne .valid_int
     jmp _the_loop_as.error_while_processing 
     
+    ;for '-{int}' or '+{int}' case
     .valid_int:
-
-    CopyChar buffer , user_input_no_space , MAX_SIZE
-    StrLen buffer 
-    mov r15 , rax 
-    sub r15 , 2 ; remove the line breaking chars
-    jmp _the_loop_as.print_result  
+    jmp _the_loop_as.return_no_print  
 
     .next2:
     dec rsi 
@@ -843,6 +985,7 @@ resolve_add_sub:
     inc rdx 
     syscall
     endl
+.return_no_print:
 ret
 
 _perform_substraction:
@@ -894,8 +1037,12 @@ je .first_number_positive
 cmp rbx , rcx 
 jl .negative_res
 
-;-2+3 --> not working =(
 sub rbx , rcx 
+cmp rbx , 0
+jne .not_zero
+IntToStr rbx , buffer
+jmp .return
+.not_zero:
 IntToStr rbx , buffer + 1
 mov rdi , buffer
 mov al , '-'
@@ -949,4 +1096,6 @@ syscall
 ret
 
 ;to do
-;catch error : -12+34^2 = segfault
+;support for : +- and -- and ++ and -+
+;support for negative div and mul ---> -2 * -5
+;32^2+3-+5

@@ -21,28 +21,41 @@ section .data
 section .text
 global _start
 _start:
+    ClearData user_input , MAX_SIZE
+
     call _prompt
     call _read_user_input
     call _check_exit
     call _check_invalide_char
     cmp r8 , 1
     je .restart
+
     call _check_invalide_division
     cmp r8 , 1
     je .restart
+
+    call opperations_simplification
+    cmp r8 , 1
+    je .restart
+    
     call _check_invalide_math
     cmp r8 , 1
     je .restart
+
     ClearData user_input_no_space , MAX_SIZE
     call _remove_space
     
     ClearData user_input , MAX_SIZE; no need for user_input
+
     call square_handling
+    cmp r8 , 1
+    je .restart
 
     mov rsi , user_input_no_space
     call resolve_mul_div
     cmp r8 , 1
     je .restart
+
     mov rsi , user_input_no_space
     call resolve_add_sub
     cmp r8 , 1
