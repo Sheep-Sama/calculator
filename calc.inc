@@ -212,8 +212,7 @@ _check_invalide_division:
     xor r8 , r8
     ret
 
-; not working for 3 - 4
-; 34^2+3-+5 = error
+
 opperations_simplification:
     mov rsi , user_input
     FindChar user_input , '-'
@@ -229,9 +228,10 @@ opperations_simplification:
 
     ClearData buffer , MAX_SIZE
     mov rdi , buffer
-    xor r9 , r9; 1 = first operation / 2 = second operation
+    xor r9 , r9;0 = no opperation /  1 = first operation / 2 = second operation
     xor r10 , r10; 0 = found addition / 1 = found substraction --> for first operation
     xor r11 , r11; 0 = found addition / 1 = found substraction --> for second operation
+    mov r12 , 2; space counter for copying '-' and '+' opperation
 .loop:
     mov al , byte [rsi]
     inc rsi
@@ -259,6 +259,10 @@ opperations_simplification:
     .space:
     mov byte [rdi] , al 
     inc rdi 
+    cmp r9 , 1
+    jne .no_increment
+    inc r12
+    .no_increment:
     jmp .loop
 
     .substraction:
@@ -280,11 +284,20 @@ opperations_simplification:
     jne .no_simplify
     call _simplifying_opperation
     .no_simplify:
+    cmp r9 , 1
+    jne .no_sub_add
+    mov rcx , rsi 
+    sub rcx , r12
+    mov r13b , byte [rcx]
+    mov byte [rdi] , r13b
+    inc rdi 
+    mov r12 , 2
+    .no_sub_add:
     ;copy char
     mov byte [rdi] , al 
     inc rdi 
 
-
+    xor r9 , r9
     jmp .loop
 
 
@@ -298,12 +311,13 @@ opperations_simplification:
     jmp .return_no_print
 
 .return:
+    CopyChar user_input , buffer , MAX_SIZE
 
-    mov rax , 1
-    mov rdi , 1
-    mov rsi , buffer
-    mov rdx , 256
-    syscall
+    ;mov rax , 1
+    ;mov rdi , 1
+    ;mov rsi , user_input
+    ;mov rdx , 256
+    ;syscall
 .return_no_print:
 ret
 
@@ -646,6 +660,7 @@ resolve_mul_div:
     xor r8 , r8 ; 0 = no error / 1 = error
     xor r9 , r9 ; 1 = div / 2 = mul 
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
+    xor r12 , r12 ; negative number handling
     mov rbx , first_number 
     mov rcx , second_number 
     ClearData first_number , MAX_SIZE
@@ -879,7 +894,7 @@ resolve_add_sub:
     xor r8 , r8 ; 0 = no error / 1 = error
     xor r9 , r9 ; 0 = sub / 1 = add 
     xor r10 , r10 ; 0 = writing first number / 1 = writing second number / ending first number
-    xor r12 , r12
+    xor r12 , r12 ; negative number handling
     mov rbx , first_number 
     mov rcx , second_number 
     ClearData first_number , MAX_SIZE
@@ -1096,6 +1111,4 @@ syscall
 ret
 
 ;to do
-;support for : +- and -- and ++ and -+
 ;support for negative div and mul ---> -2 * -5
-;32^2+3-+5
