@@ -346,7 +346,7 @@ _simplifying_opperation:
 ret 
 
 _check_invalide_math:    
-    xor rcx , rcx ; 1 = found division
+    xor rcx , rcx ; 1 = found operation
     mov rsi , user_input ; has null terminator
     .check_if_invalide_loop_m:
     mov al , byte [rsi]
@@ -371,7 +371,27 @@ _check_invalide_math:
 
     .math_operation:
     cmp rcx , 1
-    je .invalide_math_imo
+    jl .no_next_check
+    cmp al , '-'
+    je .has_add_sub
+    cmp al , '+'
+    jne .invalide_math_imo
+
+    .has_add_sub:
+    mov rbx , rsi 
+    sub rbx , 2; to get to the char before '+' or '-'
+    .checking_mul_div_loop:
+    mov dl , byte[rbx]
+    dec rbx 
+    cmp dl , 32
+    je .checking_mul_div_loop
+    cmp dl , '/'
+    je .no_next_check
+    cmp dl , '*'
+    je .no_next_check
+    jmp .invalide_math_imo; if no '*' , '/' or ' ' found
+
+    .no_next_check:
     mov rcx , 1
     jmp .check_if_invalide_loop_m
 
@@ -382,23 +402,12 @@ _check_invalide_math:
     mov rsi , error_message_imo
     syscall
     mov r8 , 1
-    ret 
+    jmp .return 
 
     .no_invalide_math:
     xor r8 , r8
-    ret 
+    jmp .return
 
-
-
-_clear_data_user_input_no_space:
-    mov rsi , user_input_no_space
-    clear_data_loop:
-    mov al , byte [rsi]
-    inc rsi 
-    cmp al, 1
-    je .return
-    mov byte [rsi - 1] , 0 ; al = rsi - 1
-    jmp clear_data_loop
 
 .return:
     ret
@@ -645,7 +654,7 @@ inc rsi
 inc rdi
 ret 
 
-
+;10+4-5/-5 = 13 = needs to be 15 !
 resolve_mul_div:
     FindChar rsi , '*'
     cmp rax , 1
@@ -673,9 +682,9 @@ resolve_mul_div:
     inc rsi 
     cmp al , 10 ; check if end of string
     je .return
-    cmp al , 43
+    cmp al , '+'
     je .opperation
-    cmp al , 45
+    cmp al , '-'
     je .opperation
     cmp al , 42
     je .multiplication
@@ -689,6 +698,38 @@ resolve_mul_div:
     jmp _the_loop
 
     .opperation:
+    cmp byte [rsi - 2] , '/'
+    je .make_operation 
+    cmp byte [user_input_no_space] , '-'
+    je .make_operation
+    cmp byte [rsi - 2] , '*'
+    je .make_operation
+
+    mov rdi , rsi 
+    .find_mul_div:
+    mov r15b , byte [rdi]
+    inc rdi 
+    cmp r15b , '*'
+    je .found_mul_div
+    cmp r15b , '/'
+    je .found_mul_div
+    cmp r15b , 48
+    jl .no_make_operation
+    jmp .find_mul_div
+
+    .make_operation:
+    cmp al , '+'
+    je .go_to_loop
+    inc r12
+    .go_to_loop:
+    jmp _the_loop
+
+    .found_mul_div:
+    xor r10 , r10
+    mov rbx , first_number 
+    ClearData first_number , MAX_SIZE    
+    jmp .make_operation
+    .no_make_operation:
     jmp resolve_mul_div
 
     .multiplication:    
@@ -730,6 +771,7 @@ resolve_mul_div:
     cmp byte [rcx] , 0
     je .error_while_processing
 
+    .no_error:
     StrToInt rbx 
     StrToInt rcx
     cmp r9 , 0
@@ -755,6 +797,7 @@ resolve_mul_div:
 
     .concat:
     call _concat_buffer
+    xor r12 , r12
 
     jmp resolve_mul_div
 
@@ -785,14 +828,45 @@ _perform_division:
 mov rdx , 0
 mov rax , rbx
 idiv rcx 
-IntToStr rax , buffer
+;negative number handling:
+cmp r12 , 1
+jne .no_negative
+
+IntToStr rax , buffer + 1
+mov al , '-'
+mov byte [buffer], al 
+inc r15
+ret
+
+.no_negative:
+
+IntToStr rax , buffer + 1
+mov al , '+'
+mov byte [buffer], al 
+inc r15
 ret 
 
 _perform_multiplication:
-imul rbx , rcx 
-IntToStr rbx , buffer
+imul rbx , rcx
+; negative number handling: 
+cmp r12 , 1
+
+jne .no_negative
+IntToStr rbx , buffer + 1
+mov al , '-'
+mov byte [buffer], al 
+inc r15
+ret
+
+.no_negative:
+
+IntToStr rbx , buffer + 1
+mov al , '+'
+mov byte [buffer], al 
+inc r15
 ret 
 
+; -2 * 5
 _concat_buffer:
 mov rdi , buffer
 dec r15; remove null byte
@@ -809,9 +883,9 @@ jne .counting_loop
 
 CopyChar rdi , rsi , rbx 
 ;check if operation
-mov rsi , user_input_no_space 
+mov rsi , user_input_no_space ;debug here
 xor rbx , rbx 
-xor rcx , rcx 
+xor rcx , rcx; last operation location pointer
 .checking_loop:
     mov al , byte [rsi]
     inc rsi 
@@ -833,8 +907,24 @@ xor rcx , rcx
 .loop_end:
     cmp rcx , 0
     je .print_data
-    ; found opperation !
+    ; found opperation ! --> +5/-5
+    ; remove + and - from user_input_no_space beging
+    mov rax , user_input_no_space
+    add rax , rcx 
+    dec rax 
+    cmp byte [rax] , '+'
+    je .copy_minus_plus
+    cmp byte [rax] , '-'
+    jne .copy_no_minus_plus
+    .copy_minus_plus:
+    dec rcx 
+    cmp rcx , 0
+    je .copy_end
+    CopyChar data_buffer , user_input_no_space , rcx
+    jmp .copy_end
+    .copy_no_minus_plus:
     CopyChar data_buffer , user_input_no_space , rcx 
+    .copy_end:
     mov rsi , data_buffer 
     add rsi , rcx ;rsi = end of data_buffer
     StrLen buffer; output = rax
@@ -1044,7 +1134,6 @@ inc r15 ;for the '-' added to the string
 ret 
 
 _perform_addition:
-;add support for negative int !!!
 cmp r12 , 0
 je .first_number_positive
 
@@ -1112,3 +1201,4 @@ ret
 
 ;to do
 ;support for negative div and mul ---> -2 * -5
+; -0 = 0 for mul and div
