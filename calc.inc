@@ -654,7 +654,6 @@ inc rsi
 inc rdi
 ret 
 
-;10+4-5/-5 = 13 = needs to be 15 !
 resolve_mul_div:
     FindChar rsi , '*'
     cmp rax , 1
@@ -700,8 +699,6 @@ resolve_mul_div:
     .opperation:
     cmp byte [rsi - 2] , '/'
     je .make_operation 
-    cmp byte [user_input_no_space] , '-'
-    je .make_operation
     cmp byte [rsi - 2] , '*'
     je .make_operation
 
@@ -781,7 +778,8 @@ resolve_mul_div:
 
     .prc_div:
     call _perform_division
-
+    cmp r8 , 1
+    je .return_no_print
 
     .after_process:
     mov rdi , user_input_no_space
@@ -810,6 +808,14 @@ resolve_mul_div:
     mov r8 , 1
     ret
 
+    .invalide_math_cdz:
+    mov rax , 1
+    mov rdi , 1
+    mov rdx , 32
+    mov rsi , error_message_cdz
+    syscall
+    mov r8 , 1
+    ret 
 
 .return:
     cmp r10 , 1
@@ -822,15 +828,21 @@ resolve_mul_div:
     inc rdx 
     syscall
     endl
+.return_no_print:
 ret
 
 _perform_division:
+cmp rcx , 0
+je _the_loop.invalide_math_cdz
+
 mov rdx , 0
 mov rax , rbx
 idiv rcx 
 ;negative number handling:
 cmp r12 , 1
 jne .no_negative
+cmp rax , 0
+je .no_negative
 
 IntToStr rax , buffer + 1
 mov al , '-'
@@ -850,8 +862,10 @@ _perform_multiplication:
 imul rbx , rcx
 ; negative number handling: 
 cmp r12 , 1
-
 jne .no_negative
+cmp rbx , 0
+je .no_negative
+
 IntToStr rbx , buffer + 1
 mov al , '-'
 mov byte [buffer], al 
@@ -866,7 +880,6 @@ mov byte [buffer], al
 inc r15
 ret 
 
-; -2 * 5
 _concat_buffer:
 mov rdi , buffer
 dec r15; remove null byte
@@ -1200,5 +1213,4 @@ syscall
 ret
 
 ;to do
-;support for negative div and mul ---> -2 * -5
-; -0 = 0 for mul and div
+;-16+16*-5 = 
