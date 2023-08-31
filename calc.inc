@@ -1,4 +1,4 @@
-%include "../lib.inc"
+%include "lib.inc"
 MAX_SIZE equ 256
 
 section .data
@@ -448,6 +448,7 @@ square_handling:
     xor r9 , r9; 0 = sqr operation / 1 = other operation
     mov r11 , user_input_no_space ;last copied char
     xor r13 , r13; 0 = no negative int / 1 = negative int
+    xor r14 , r14 
     ClearData buffer , MAX_SIZE
     ClearData first_number , MAX_SIZE
     ClearData second_number , MAX_SIZE
@@ -483,11 +484,20 @@ square_handling:
     jmp .loop
 
     .minus_found:
+    mov r15b , '/' 
+    cmp byte [rsi - 2] , r15b 
+    je .negative_div_mul
+    mov r15b , '*'
+    cmp byte [rsi - 2] , r15b 
+    je .negative_div_mul
+
     cmp byte [first_number] , 0
     jne .no_negative_number
     mov r13 , 1
     jmp .loop
-
+    .negative_div_mul:
+    mov r14 , 1
+    jmp .loop
 
     .number:
     cmp r10 , 1
@@ -547,9 +557,18 @@ square_handling:
     mov al , byte [rdx]
     mov byte [rdi] , al
     inc rdi
+    ;for negative division and multiplication:
+    cmp r14 ,1 
+    jne .end
+    mov al , '-'
+    mov byte [rdi] , al
+    inc rdi
+    inc rsi 
 
     .end:
     xor r13 , r13
+    xor r14 , r14
+
     ClearData first_number , MAX_SIZE
     ClearData second_number , MAX_SIZE
     mov rbx , first_number 
@@ -1213,4 +1232,3 @@ syscall
 ret
 
 ;to do
-;-16+16*-5 = 
